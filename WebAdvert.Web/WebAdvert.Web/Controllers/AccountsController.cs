@@ -21,7 +21,7 @@ namespace WebAdvert.Web.Controllers
             _pool = pool;
         }
 
-        public async Task<IActionResult> Signup()
+        public IActionResult Signup()
         {
             var model = new SignupViewModel();
             return View(model);
@@ -43,11 +43,48 @@ namespace WebAdvert.Web.Controllers
                 var createdUser = await _userManager.CreateAsync(user, model.Password).ConfigureAwait(false);
                 if (createdUser.Succeeded)
                 {
-                    RedirectToAction("Confirm");
+                    return RedirectToAction("Confirm");
                 }
             }
 
-            return View();
+            return View(model);
+        }
+
+        [HttpGet]
+        public IActionResult Confirm()
+        {
+            var model = new ConfirmViewModel();
+            return View(model);
+        }
+
+        [HttpPost]
+        [ActionName("Confirm")]
+        public async Task<IActionResult> ConfirmPost(ConfirmViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = await _userManager.FindByEmailAsync(model.Email);
+                if (user == null)
+                {
+                    ModelState.AddModelError("NotFound", "A user with the given email address was not found.");
+                    return View(model);
+                }
+
+                var result = await _userManager.ConfirmEmailAsync(user, model.Code);
+                if (result.Succeeded)
+                {
+                    return RedirectToAction("Index", "Home");
+                }
+                else
+                {
+                    foreach (var identityError in result.Errors)
+                    {
+                        ModelState.AddModelError(identityError.Code, identityError.Description);
+                    }
+                }
+            }
+
+            return View(model);
         }
     }
 }
